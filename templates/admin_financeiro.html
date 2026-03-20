@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Financeiro — GusTico{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+  <div>
+    <h2 style="font-size:18px;font-weight:700">Financeiro</h2>
+    <span style="font-size:11px;color:var(--txt3)">{{hoje|datebr}} · Resumo do mês</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if caixa_aberto %}
+    <button class="btn btn-vm btn-xs" onclick="document.getElementById('modal-fechar').classList.add('open')">💼 Fechar caixa</button>
+    {% else %}
+    <button class="btn btn-vd btn-xs" onclick="document.getElementById('modal-abrir').classList.add('open')">💵 Abrir caixa</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Status do caixa -->
+{% if caixa_aberto %}
+<div style="background:var(--vd2);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--vd);font-weight:700">● Caixa aberto</span>
+  {% if caixa_abertura %}
+  <span style="color:var(--txt2)">desde {{caixa_abertura[11:16]}}</span>
+  {% endif %}
+  <span style="margin-left:auto;color:var(--vd);font-weight:600">Hoje: R${{"{:.0f}".format(total_hoje)}} · {{atend_hoje}} atend.</span>
+</div>
+{% else %}
+<div style="background:rgba(196,30,42,.08);border:1px solid rgba(196,30,42,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;display:flex;align-items:center;gap:8px">
+  <span style="color:var(--vm);font-weight:700">● Caixa fechado</span>
+  {% if caixa_fechamento %}
+  <span style="color:var(--txt2)">fechou às {{caixa_fechamento[11:16]}}</span>
+  {% endif %}
+  <span style="margin-left:auto;color:var(--txt2)">Hoje: R${{"{:.0f}".format(total_hoje)}} · {{atend_hoje}} atend.</span>
+</div>
+{% endif %}
+
+<!-- KPIs -->
+<div class="kpis">
+  <div class="kpi"><small>Receita do mês</small><b style="color:var(--vd)">R${{"{:.0f}".format(total_mes)}}</b><span>{{por_dia|length}} dia(s)</span></div>
+  <div class="kpi"><small>Total geral</small><b style="color:var(--rx)">R${{"{:.0f}".format(total_geral)}}</b><span>Desde o início</span></div>
+  <div class="kpi"><small>Hoje</small><b style="color:var(--vm)">R${{"{:.0f}".format(total_hoje)}}</b><span>{{atend_hoje}} atend.</span></div>
+  <div class="kpi"><small>Ticket médio</small><b style="color:var(--txt2)">R${% if por_dia|sum(attribute='qtd') > 0 %}{{"{:.0f}".format(total_mes / por_dia|sum(attribute='qtd'))}}{% else %}0{% endif %}</b><span>Por atendimento</span></div>
+</div>
+
+<!-- Gráfico -->
+<div class="card">
+  <h3>Ganhos do mês por dia</h3>
+  {% if por_dia %}
+  <div style="position:relative;height:280px">
+    <canvas id="chart"></canvas>
+  </div>
+  {% else %}
+  <div class="empty">Sem dados neste mês.</div>
+  {% endif %}
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  <h3>Histórico</h3>
+  {% if por_dia %}
+  <table>
+    <thead><tr><th>Data</th><th>Atend.</th><th>Receita</th><th>Média</th></tr></thead>
+    <tbody>
+    {% for r in por_dia|reverse %}
+    <tr>
+      <td><a href="/admin/fila?data={{r.dia}}" style="color:var(--rx);font-weight:600">{{r.dia|datebr}}</a></td>
+      <td style="color:var(--txt2)">{{r.qtd}}</td>
+      <td style="color:var(--vd);font-weight:600">R${{"{:.0f}".format(r.total)}}</td>
+      <td style="color:var(--txt2)">{% if r.qtd > 0 %}R${{"{:.0f}".format(r.total/r.qtd)}}{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Nenhum pagamento registrado.</div>
+  {% endif %}
+</div>
+
+<!-- Modal: Abrir caixa -->
+<div class="modal-bg" id="modal-abrir">
+  <div class="modal">
+    <h3>💵 Abrir caixa? <span style="flex:1"></span><button class="btn btn-ghost btn-xs" onclick="fecharM('modal-abrir')">✕</button></h3>
+    <p style="font-size:13px;color:var(--txt2);margin-bottom:16px">Ao abrir o caixa, o sistema registra o horário de início do expediente.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" onclick="fecharM('modal-abrir')">Cancelar</button>
+      <button class="btn btn-vd btn-xs" onclick="toggleCaixa(true)">Confirmar e abrir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Fechar caixa -->
+<div class="modal-bg" id="modal-fechar">
+  <div class="modal">
+    <h3>💼 Fechar caixa? <span style="flex:1"></span><button class="btn btn-ghost btn-xs" onclick="fecharM('modal-fechar')">✕</button></h3>
+    <div style="background:var(--card2);border:1px solid var(--borda);border-radius:8px;padding:14px;margin-bottom:14px;text-align:center">
+      <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Resumo do dia</div>
+      <div style="font-size:32px;font-weight:800;color:var(--vd)">R${{"{:.0f}".format(total_hoje)}}</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px">{{atend_hoje}} atendimento(s){% if caixa_abertura %} · aberto às {{caixa_abertura[11:16]}}{% endif %}</div>
+    </div>
+    <p style="font-size:12px;color:var(--vm);margin-bottom:14px">⚠ Certifique-se de que todos os pagamentos foram registrados.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" onclick="fecharM('modal-fechar')">Cancelar</button>
+      <button class="btn btn-vm btn-xs" onclick="toggleCaixa(false)">Confirmar e fechar</button>
+    </div>
+  </div>
+</div>
+
+{% if por_dia %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+var dados = {{ dias_grafico|tojson }};
+var caixaFechado = {{ (not caixa_aberto)|tojson }};
+var hojeStr = "{{hoje}}";
+
+var labels = dados.map(function(d){return d.dia.slice(8)+"/"+d.dia.slice(5,7)});
+var valores = dados.map(function(d){return d.total});
+var qtds = dados.map(function(d){return d.qtd});
+
+/* Cores: dia do fechamento fica com barra cinza */
+var cores = dados.map(function(d){
+  if(caixaFechado && d.dia === hojeStr) return 'rgba(90,64,88,0.5)';
+  return 'rgba(196,30,42,0.7)';
+});
+var bordas = dados.map(function(d){
+  if(caixaFechado && d.dia === hojeStr) return '#5a4058';
+  return '#C41E2A';
+});
+
+new Chart(document.getElementById('chart'),{
+  type:'bar',
+  data:{
+    labels:labels,
+    datasets:[{
+      label:'Receita (R$)',
+      data:valores,
+      backgroundColor:cores,
+      borderColor:bordas,
+      borderWidth:1,
+      borderRadius:4,
+      barPercentage:0.6
+    },{
+      label:'Atendimentos',
+      data:qtds,
+      type:'line',
+      borderColor:'#8B4098',
+      backgroundColor:'rgba(139,64,152,0.1)',
+      borderWidth:2,
+      pointRadius:4,
+      pointBackgroundColor:'#8B4098',
+      tension:0.3,
+      yAxisID:'y1',
+      fill:true
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{labels:{color:'#a088a0',font:{size:11}}},
+      tooltip:{
+        backgroundColor:'#1c1218',titleColor:'#f0e0ee',bodyColor:'#a088a0',
+        borderColor:'#3d2238',borderWidth:1,padding:10,
+        callbacks:{
+          label:function(c){return c.datasetIndex===0?' R$ '+c.raw.toFixed(0):' '+c.raw+' atend.'},
+          afterBody:function(c){
+            var idx=c[0].dataIndex;
+            if(caixaFechado && dados[idx].dia===hojeStr) return ['📋 Caixa fechado'];
+            return [];
+          }
+        }
+      }
+    },
+    scales:{
+      x:{ticks:{color:'#5a4058',font:{size:10}},grid:{color:'rgba(42,21,37,0.5)'}},
+      y:{position:'left',ticks:{color:'#C41E2A',font:{size:10},callback:function(v){return'R$'+v}},grid:{color:'rgba(42,21,37,0.3)'}},
+      y1:{position:'right',ticks:{color:'#8B4098',font:{size:10},stepSize:1},grid:{display:false}}
+    }
+  }
+});
+</script>
+{% endif %}
+
+<script>
+var H={"Content-Type":"application/json"};
+function fecharM(id){document.getElementById(id).classList.remove("open")}
+document.querySelectorAll(".modal-bg").forEach(function(m){m.onclick=function(e){if(e.target===m)m.classList.remove("open")}});
+
+function toggleCaixa(abrir){
+  fetch("/api/caixa/toggle",{method:"POST",headers:H,body:JSON.stringify({abrir:abrir})})
+    .then(function(){location.reload()});
+}
+</script>
+{% endblock %}

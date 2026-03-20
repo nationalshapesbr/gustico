@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — GusTico{% endblock %}
+
+{% block style %}
+<style>
+.drag-h{cursor:grab;opacity:.3;display:flex;flex-direction:column;gap:2px;padding:2px 4px;flex-shrink:0}
+.drag-h:active{cursor:grabbing;opacity:.6}
+.drag-h i{display:block;width:14px;height:1.5px;background:var(--txt2);border-radius:1px}
+.sortable-ghost{opacity:.15;border:1px dashed var(--vm)!important}
+.sortable-chosen{box-shadow:0 0 0 2px var(--vm)!important}
+.header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.header h1{font-size:22px;font-weight:700;line-height:1.2}
+.header small{font-size:11px;color:var(--txt3);display:block}
+.header-acts{display:flex;gap:8px;align-items:center}
+.hint{display:flex;justify-content:space-between;align-items:center;padding:0 4px;margin-bottom:8px;font-size:10px;color:var(--txt3);letter-spacing:.5px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+  <div>
+    <h1>Dashboard</h1>
+    <small>{{data|datebr}}</small>
+  </div>
+  <div class="header-acts">
+    <input type="date" value="{{data}}" class="inp" style="width:145px;padding:7px 10px;font-size:12px" onchange="location='/admin/fila?data='+this.value">
+    {% if fila_aberta %}
+      <button class="btn btn-vm btn-xs" onclick="toggleFila(false)">Fechar fila</button>
+    {% else %}
+      <button class="btn btn-vd btn-xs" onclick="toggleFila(true)">Abrir fila</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if not fila_aberta %}
+<div class="alert alert-erro">Fila fechada — novos clientes não podem entrar.</div>
+{% endif %}
+
+<div class="kpis">
+  <div class="kpi"><small>Na fila</small><b>{{fila|length}}</b></div>
+  <div class="kpi"><small>Receita dia</small><b style="color:var(--vd)">R${{"{:.0f}".format(total_dia)}}</b></div>
+  <div class="kpi"><small>Aguardando</small><b style="color:var(--vm)">{{fila|selectattr("status","eq","aguardando")|list|length}}</b></div>
+  <div class="kpi"><small>Concluídos</small><b style="color:var(--rx)">{{fila|selectattr("status","eq","concluido")|list|length}}</b></div>
+</div>
+
+{% if fila %}
+<div class="hint">
+  <span>{{fila|length}} REGISTRO(S)</span>
+  <span>≡ arraste para reordenar</span>
+</div>
+
+<div id="sortable">
+  {% for f in fila %}
+  {% set mins = espera.get(f.id, 0) %}
+  <div class="fi {{f.status}}" data-id="{{f.id}}">
+
+    <div class="drag-h" title="Arrastar"><i></i><i></i><i></i></div>
+
+    <div class="fi-num">{{f.ordem}}</div>
+
+    <div class="fi-body">
+      <div class="fi-nome">{{f.nome}}</div>
+      <div class="fi-srv">{{f.servicos or "—"}} · <span style="color:var(--rx);font-weight:600">R${{"{:.0f}".format(f.total)}}</span></div>
+      <div class="fi-meta">
+        {{f.duracao}}min · chegou {{f.chegada[11:16] if f.chegada else "—"}}
+        {% if f.inicio %} · início {{f.inicio[11:16]}}{% endif %}
+        {% if f.fim %} · fim {{f.fim[11:16]}}{% endif %}
+        {% if f.status == "aguardando" and mins > 0 %}
+          · <span style="color:var(--vm)">~{{mins}}min espera</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <span class="badge {% if f.status=='aguardando' %}b-ag{% elif f.status=='atendendo' %}b-at{% else %}b-co{% endif %}">
+        {% if f.status=='concluido' %}concluído{% else %}{{f.status}}{% endif %}
+      </span>
+      {% if f.pago_id %}<span class="badge b-pg">pago</span>{% endif %}
+    </div>
+
+    <div class="fi-acts">
+      {% if f.status == "aguardando" %}
+        <button class="btn btn-vd btn-xs" onclick="chamar({{f.id}})">Chamar</button>
+        <button class="btn btn-ghost btn-xs" onclick="cancelar({{f.id}})">✕</button>
+      {% elif f.status == "atendendo" %}
+        <button class="btn btn-rx btn-xs" onclick="abrirPag({{f.id}},{{f.total}})">Cobrar</button>
+        <button class="btn btn-ghost btn-xs" onclick="concluir({{f.id}})">✓</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty">Nenhum cliente em {{data|datebr}}</div>
+{% endif %}
+
+<!-- Modal pagamento -->
+<div class="modal-bg" id="m-pag" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Pagamento <button class="btn btn-ghost btn-xs" style="margin-left:auto" onclick="document.getElementById('m-pag').classList.remove('open')">✕</button></h3>
+    <input type="hidden" id="p-id">
+    <div class="form-group">
+      <label>Valor (R$)</label>
+      <input type="number" id="p-val" class="inp" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Método</label>
+      <select id="p-met" class="inp">
+        <option value="dinheiro">💵 Dinheiro</option>
+        <option value="pix">📱 Pix</option>
+        <option value="debito">💳 Débito</option>
+        <option value="credito">💎 Crédito</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" onclick="document.getElementById('m-pag').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-vd btn-xs" onclick="confirmarPag()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+var H={"Content-Type":"application/json"};
+function api(url,body){return fetch(url,{method:"POST",headers:H,body:JSON.stringify(body)})}
+
+function chamar(id){api("/api/status/"+id,{status:"atendendo"}).then(()=>location.reload())}
+function concluir(id){api("/api/status/"+id,{status:"concluido"}).then(()=>location.reload())}
+function cancelar(id){if(confirm("Remover?"))api("/api/cancelar/"+id,{}).then(()=>location.reload())}
+function toggleFila(a){api("/api/fila/toggle",{abrir:a}).then(()=>location.reload())}
+
+function abrirPag(id,v){
+  document.getElementById("p-id").value=id;
+  document.getElementById("p-val").value=v.toFixed(2);
+  document.getElementById("m-pag").classList.add("open");
+}
+async function confirmarPag(){
+  var id=document.getElementById("p-id").value;
+  await api("/api/pagar/"+id,{valor:parseFloat(document.getElementById("p-val").value),metodo:document.getElementById("p-met").value});
+  await api("/api/status/"+id,{status:"concluido"});
+  location.reload();
+}
+
+var el=document.getElementById("sortable");
+if(el) Sortable.create(el,{
+  handle:".drag-h",animation:180,ghostClass:"sortable-ghost",chosenClass:"sortable-chosen",
+  onEnd:function(){
+    var ids=[...el.querySelectorAll(".fi[data-id]")].map(e=>+e.dataset.id);
+    api("/api/reordenar",{ids:ids});
+    el.querySelectorAll(".fi-num").forEach(function(n,i){n.textContent=i+1});
+  }
+});
+</script>
+{% endblock %}

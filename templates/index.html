@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}GusTico Barbearia{% endblock %}
+
+{% block style %}
+<style>
+  .hero{text-align:center;padding:36px 0 28px}
+  .hero-logo{width:52px;height:52px;background:var(--vm);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;margin-bottom:10px}
+  .hero h1{font-size:38px;font-weight:800;text-transform:uppercase;letter-spacing:2px}
+  .hero h1 em{color:var(--vm);font-style:normal}
+  .hero p{color:var(--txt2);font-size:13px;margin-top:4px}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+
+  .srv input{display:none}
+  .srv .s-name{font-size:12px;font-weight:600}
+  .srv .s-dur{font-size:10px;color:var(--txt3);margin-top:1px}
+  .srv .s-price{font-size:12px;color:var(--rx);font-weight:700}
+
+  .resumo{display:none;margin-top:8px;padding:8px 10px;background:var(--card2);border:1px solid var(--borda);border-radius:6px;font-size:11px;text-align:center}
+
+  .fl{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:1px solid var(--borda);border-radius:8px;margin-bottom:6px;border-left:3px solid var(--borda2)}
+  .fl.atendendo{border-left-color:var(--vd);background:var(--card2)}
+  .fl-n{font-size:20px;font-weight:700;color:var(--txt3);min-width:28px;text-align:center}
+  .fl.atendendo .fl-n{color:var(--vd)}
+  .fl-timer{font-size:10px;margin-top:2px}
+
+  .live-bar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:0 2px;font-size:10px;color:var(--txt3)}
+  .live-dot{width:5px;height:5px;border-radius:50%;background:var(--vd);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+
+  .status-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;font-size:10px;color:var(--txt3)}
+  .st-dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
+  .st-dot.aberta{background:var(--vd);box-shadow:0 0 6px var(--vd)}
+  .st-dot.fechada{background:var(--vm);box-shadow:0 0 6px var(--vm);animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  @media(max-width:700px){.cols{grid-template-columns:1fr}.hero h1{font-size:28px}}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Pontinho escondido no canto superior direito -->
+<a href="/admin/login" style="position:fixed;top:8px;right:8px;width:12px;height:12px;z-index:99;opacity:0;cursor:default" onmouseenter="this.style.opacity='0.15'" onmouseleave="this.style.opacity='0'">·</a>
+
+<div class="hero">
+  <div class="hero-logo">GT</div>
+  <h1>GUS<em>TICO</em></h1>
+  <p>Entre na fila, escolha o serviço e aguarde sua vez.</p>
+  <div class="status-row">
+    <div class="st-dot {% if fila_aberta %}aberta{% else %}fechada{% endif %}" id="st-dot"></div>
+    <span id="st-text">{% if fila_aberta %}Fila aberta{% else %}Fila fechada{% endif %}</span>
+    <span id="relogio"></span>
+  </div>
+</div>
+
+<div class="cols">
+
+  <!-- FORMULÁRIO -->
+  <div>
+    {% if not fila_aberta %}
+    <div class="card" style="text-align:center;border-color:rgba(196,30,42,.3)">
+      <div style="font-size:10px;color:var(--vm);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Fila fechada</div>
+      <p style="font-size:13px;color:var(--txt2)">Não estamos aceitando novos clientes agora.</p>
+    </div>
+    {% else %}
+    <div class="card">
+      <h3>Entrar na fila</h3>
+      <form method="POST" action="/entrar">
+        <div class="form-group">
+          <label>Seu nome</label>
+          <input type="text" name="nome" class="inp" placeholder="Ex: Rafael" required maxlength="60">
+        </div>
+        <div class="form-group">
+          <label>Serviços (marque 1 ou mais)</label>
+          <div class="srv-grid">
+            {% for s in servicos %}
+            <label class="srv" onclick="toggleSrv(this,{{s.preco}},{{s.duracao}})">
+              <input type="checkbox" name="servico_ids" value="{{s.id}}">
+              <div><div class="s-name">{{s.nome}}</div><div class="s-dur">{{s.duracao}}min</div></div>
+              <span class="s-price">R${{"{:.0f}".format(s.preco)}}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="resumo" id="resumo">
+          <span style="color:var(--txt2)"><span id="r-qtd">0</span> serviço(s) · <span id="r-dur">0</span>min</span>
+          <span style="color:var(--rx);font-weight:700;margin-left:8px">R$<span id="r-preco">0</span></span>
+        </div>
+        <button type="submit" class="btn btn-vm" id="btn-go" disabled style="width:100%;justify-content:center;margin-top:12px;padding:10px">
+          Entrar na fila →
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- FILA AO VIVO -->
+  <div>
+    <div class="card">
+      <h3>Fila ao vivo <span style="font-size:10px;color:var(--txt3);font-weight:400" id="fila-count">{{fila|length}} pessoa(s)</span></h3>
+      <div id="fila-container">
+        {% if fila %}
+          {% for f in fila %}
+          <div class="fl {{f.status}}">
+            <div class="fl-n">{{loop.index}}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px">{{f.nome}}</div>
+              <div style="font-size:11px;color:var(--txt2)">{{f.servicos or "—"}}</div>
+              {% if f.status == "atendendo" and f.inicio %}
+              <div class="fl-timer" style="color:var(--vd)" data-inicio="{{f.inicio}}" data-dur="{{f.duracao}}"></div>
+              {% elif f.status == "aguardando" and espera.get(f.id, 0) > 0 %}
+              <div class="fl-timer fl-espera" style="color:var(--rx)" data-espera="{{espera[f.id]}}">~{{espera[f.id]}}min de espera</div>
+              {% endif %}
+            </div>
+            <span class="badge {% if f.status=='atendendo' %}b-at{% else %}b-ag{% endif %}">{{f.status}}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="text-align:center;padding:24px;color:var(--txt3);font-size:13px">Fila vazia — seja o primeiro!</div>
+        {% endif %}
+      </div>
+      <div class="live-bar">
+        <div><span class="live-dot"></span><span id="live-text">ao vivo</span></div>
+        <span>atualiza a cada 5s</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var tP=0,tD=0,tQ=0;
+function toggleSrv(el,p,d){
+  var cb=el.querySelector("input");
+  cb.checked=!cb.checked;
+  el.classList.toggle("sel",cb.checked);
+  tP+=cb.checked?p:-p;tD+=cb.checked?d:-d;tQ+=cb.checked?1:-1;
+  document.getElementById("resumo").style.display=tQ>0?"block":"none";
+  document.getElementById("r-preco").textContent=tP;
+  document.getElementById("r-dur").textContent=tD;
+  document.getElementById("r-qtd").textContent=tQ;
+  document.getElementById("btn-go").disabled=tQ<1;
+}
+
+function tickRelogio(){
+  var n=new Date();
+  var el=document.getElementById("relogio");
+  if(el)el.textContent=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")+":"+String(n.getSeconds()).padStart(2,"0");
+}
+setInterval(tickRelogio,1000);tickRelogio();
+
+function fmtT(s){if(s<=0)return"agora";var m=Math.floor(s/60),r=s%60;return m>0?m+"min "+String(r).padStart(2,"0")+"s":r+"s"}
+
+/* Marca o instante em que cada espera foi recebida do servidor */
+var esperaBase={};
+function marcarEsperas(){
+  document.querySelectorAll(".fl-espera[data-espera]").forEach(function(el){
+    if(!el.dataset.ts) el.dataset.ts=Date.now();
+  });
+}
+marcarEsperas();
+
+function tickTimers(){
+  /* Atendendo: conta tempo restante do serviço */
+  document.querySelectorAll(".fl-timer[data-inicio]").forEach(function(el){
+    var ini=new Date(el.dataset.inicio.replace(" ","T")).getTime();
+    var dur=parseInt(el.dataset.dur||30)*60;
+    var rest=dur-Math.floor((Date.now()-ini)/1000);
+    if(rest>0){el.textContent="⏳ restam "+fmtT(rest);el.style.color=rest<120?"var(--vm)":"var(--vd)";}
+    else{el.textContent="⏰ tempo esgotado";el.style.color="var(--vm)";}
+  });
+  /* Aguardando: conta regressivamente a partir da espera estimada */
+  document.querySelectorAll(".fl-espera[data-espera]").forEach(function(el){
+    var totalSeg=parseInt(el.dataset.espera)*60;
+    var ts=parseInt(el.dataset.ts||Date.now());
+    var passado=Math.floor((Date.now()-ts)/1000);
+    var rest=totalSeg-passado;
+    if(rest>0){el.textContent="⏳ ~"+fmtT(rest)+" de espera";el.style.color=rest<60?"var(--vd)":"var(--rx)";}
+    else{el.textContent="🔔 sua vez está chegando!";el.style.color="var(--vd)";}
+  });
+}
+setInterval(tickTimers,1000);tickTimers();
+
+function renderFila(data){
+  var c=document.getElementById("fila-container");
+  var fc=document.getElementById("fila-count");
+  var sd=document.getElementById("st-dot");
+  var st=document.getElementById("st-text");
+  var lt=document.getElementById("live-text");
+  if(fc)fc.textContent=data.total+" pessoa(s)";
+  if(sd)sd.className="st-dot "+(data.fila_aberta?"aberta":"fechada");
+  if(st)st.textContent=data.fila_aberta?"Fila aberta":"Fila fechada";
+  if(lt)lt.textContent="atualizado "+data.hora;
+  if(!data.fila.length){c.innerHTML='<div style="text-align:center;padding:24px;color:var(--txt3);font-size:13px">Fila vazia — seja o primeiro!</div>';return}
+  var now=Date.now();
+  var h="";
+  data.fila.forEach(function(f){
+    var timer="";
+    if(f.status==="atendendo"&&f.inicio)
+      timer='<div class="fl-timer" style="color:var(--vd)" data-inicio="'+f.inicio+'" data-dur="'+f.duracao+'"></div>';
+    else if(f.status==="aguardando"&&f.espera_min>0)
+      timer='<div class="fl-timer fl-espera" style="color:var(--rx)" data-espera="'+f.espera_min+'" data-ts="'+now+'">⏳ ~'+f.espera_min+'min de espera</div>';
+    var bc=f.status==="atendendo"?"b-at":"b-ag";
+    h+='<div class="fl '+f.status+'"><div class="fl-n">'+f.pos+'</div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+f.nome+'</div><div style="font-size:11px;color:var(--txt2)">'+f.servicos+'</div>'+timer+'</div><span class="badge '+bc+'">'+f.status+'</span></div>';
+  });
+  c.innerHTML=h;
+  tickTimers();
+}
+
+function atualizarFila(){fetch("/api/fila-publica").then(function(r){return r.json()}).then(renderFila).catch(function(){})}
+setInterval(atualizarFila,5000);
+</script>
+{% endblock %}

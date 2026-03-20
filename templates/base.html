@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}GusTico{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--card:#141414;--card2:#1c1218;--borda:#2a1525;--borda2:#3d2238;
+  --txt:#f0e0ee;--txt2:#a088a0;--txt3:#5a4058;
+  --vm:#C41E2A;--vm2:#9B1722;--rx:#8B4098;--rx2:#6B2D7B;
+  --vd:#22c55e;--vd2:rgba(34,197,94,.12);
+}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh}
+a{color:var(--rx);text-decoration:none}
+.container{max-width:860px;margin:0 auto;padding:24px 20px}
+.nav{background:#111;border-bottom:1px solid var(--borda);padding:10px 20px;position:sticky;top:0;z-index:10}
+.nav-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--txt)}
+.brand i{background:var(--vm);color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;font-style:normal}
+.links{display:flex;gap:8px;align-items:center}
+.links a{color:var(--txt2);font-size:12px;padding:5px 10px;border-radius:6px;transition:.15s}
+.links a:hover,.links a.on{background:var(--card2);color:var(--txt)}
+.card{background:var(--card);border:1px solid var(--borda);border-radius:10px;padding:20px;margin-bottom:16px}
+.card h3{font-size:14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--borda);border-radius:10px;padding:14px;text-align:center}
+.kpi small{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px}
+.kpi b{display:block;font-size:26px;margin:4px 0}
+.kpi span{font-size:11px;color:var(--txt2)}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;color:var(--txt2);margin-bottom:4px;font-weight:600}
+.inp{width:100%;padding:9px 12px;background:var(--card);border:1px solid var(--borda);border-radius:6px;color:var(--txt);font-size:13px;font-family:inherit}
+.inp:focus{outline:none;border-color:var(--vm)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.btn-vm{background:var(--vm);color:#fff}.btn-vm:hover{background:var(--vm2)}
+.btn-rx{background:var(--rx);color:#fff}.btn-rx:hover{background:var(--rx2)}
+.btn-vd{background:var(--vd);color:#fff}.btn-vd:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--borda)}.btn-ghost:hover{border-color:var(--borda2);color:var(--txt)}
+.btn-xs{padding:4px 8px;font-size:11px}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.b-ag{background:rgba(196,30,42,.15);color:var(--vm)}
+.b-at{background:var(--vd2);color:var(--vd)}
+.b-co{background:rgba(139,64,152,.15);color:var(--rx)}
+.b-pg{background:var(--vd2);color:var(--vd)}
+.fi{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);border:1px solid var(--borda);border-radius:10px;margin-bottom:8px;border-left:3px solid var(--borda2)}
+.fi.atendendo{border-left-color:var(--vd);background:var(--card2)}
+.fi.concluido{opacity:.5}
+.fi-num{font-size:20px;font-weight:700;color:var(--txt3);min-width:30px;text-align:center}
+.fi.atendendo .fi-num{color:var(--vd)}
+.fi-body{flex:1;min-width:0}
+.fi-nome{font-weight:600;font-size:13px}
+.fi-srv{font-size:12px;color:var(--txt2);margin-top:2px}
+.fi-meta{font-size:11px;color:var(--txt3);margin-top:2px}
+.fi-acts{display:flex;gap:5px;flex-shrink:0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--borda2);border-radius:12px;padding:24px;width:380px;max-width:92vw}
+.modal h3{margin-bottom:16px}
+.alert{padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:13px}
+.alert-ok{background:var(--vd2);color:var(--vd)}.alert-erro{background:rgba(196,30,42,.12);color:var(--vm)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--borda)}
+td{padding:8px 10px;border-bottom:1px solid var(--borda);font-size:13px}
+.empty{text-align:center;padding:36px;color:var(--txt3);font-size:13px;border:1px dashed var(--borda);border-radius:10px}
+.srv-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.srv{padding:9px 10px;border:1px solid var(--borda);border-radius:6px;cursor:pointer;transition:.12s;display:flex;justify-content:space-between;align-items:center}
+.srv:hover,.srv.sel{border-color:var(--vm);background:rgba(196,30,42,.08)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.grid-2,.srv-grid{grid-template-columns:1fr}.nav .container{flex-direction:column;gap:8px}}
+</style>
+{% block style %}{% endblock %}
+</head>
+<body>
+{% if session.admin %}
+<nav class="nav"><div class="nav-inner">
+  <a href="/" class="brand"><i>GT</i> GusTico</a>
+  <div class="links">
+    <a href="/admin/fila" class="{% if pagina=='fila' %}on{% endif %}">Dashboard</a>
+    <a href="/admin/financeiro" class="{% if pagina=='financeiro' %}on{% endif %}">Financeiro</a>
+    <a href="/admin/servicos" class="{% if pagina=='servicos' %}on{% endif %}">Serviços</a>
+    <a href="/">Público</a>
+    <a href="/admin/logout" class="btn btn-ghost btn-xs">Sair</a>
+  </div>
+</div></nav>
+{% endif %}
+<div class="container">
+  {% with msgs=get_flashed_messages(with_categories=True) %}{% for cat,msg in msgs %}<div class="alert alert-{{cat}}">{{msg}}</div>{% endfor %}{% endwith %}
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

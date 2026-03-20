@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Serviços — GusTico{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <h2 style="font-size:18px">Serviços</h2>
+  <button class="btn btn-vm btn-xs" onclick="document.getElementById('m-novo').classList.add('open')">+ Novo</button>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+  {% for s in servicos %}
+  <div class="card" style="border-left:3px solid {{'var(--rx)' if s.ativo else 'var(--borda)'}};padding:16px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-weight:600;font-size:14px;{{'text-decoration:line-through;opacity:.5' if not s.ativo}}">{{s.nome}}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--rx);margin-top:4px">R${{"{:.0f}".format(s.preco)}}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:3px">{{s.duracao}}min</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button class="btn btn-ghost btn-xs" onclick="editar({{s.id}},'{{s.nome}}',{{s.preco}},{{s.duracao}},{{s.ativo}})">Editar</button>
+        {% if s.ativo %}
+        <button class="btn btn-vm btn-xs" onclick="toggle({{s.id}},0,'{{s.nome}}',{{s.preco}},{{s.duracao}})">Excluir</button>
+        {% else %}
+        <button class="btn btn-vd btn-xs" onclick="toggle({{s.id}},1,'{{s.nome}}',{{s.preco}},{{s.duracao}})">Ativar</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="modal-bg" id="m-novo" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Novo Serviço</h3>
+    <div class="form-group"><label>Nome</label><input type="text" id="n-nome" class="inp" placeholder="Ex: Corte + Barba"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Preço (R$)</label><input type="number" id="n-preco" class="inp" step="0.01"></div>
+      <div class="form-group"><label>Duração (min)</label><input type="number" id="n-dur" class="inp" value="30"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" onclick="document.getElementById('m-novo').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-vm btn-xs" onclick="criar()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="m-edit" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Editar Serviço</h3>
+    <input type="hidden" id="e-id"><input type="hidden" id="e-at">
+    <div class="form-group"><label>Nome</label><input type="text" id="e-nome" class="inp"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Preço (R$)</label><input type="number" id="e-preco" class="inp" step="0.01"></div>
+      <div class="form-group"><label>Duração (min)</label><input type="number" id="e-dur" class="inp"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" onclick="document.getElementById('m-edit').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-rx btn-xs" onclick="salvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const J='application/json';
+function editar(id,n,p,d,a){document.getElementById('e-id').value=id;document.getElementById('e-nome').value=n;document.getElementById('e-preco').value=p;document.getElementById('e-dur').value=d;document.getElementById('e-at').value=a;document.getElementById('m-edit').classList.add('open')}
+async function criar(){const n=document.getElementById('n-nome').value.trim(),p=document.getElementById('n-preco').value,d=document.getElementById('n-dur').value;if(!n||!p)return alert('Preencha tudo.');await fetch('/api/servico',{method:'POST',headers:{'Content-Type':J},body:JSON.stringify({nome:n,preco:p,duracao:d})});location.reload()}
+async function salvar(){const id=document.getElementById('e-id').value,n=document.getElementById('e-nome').value.trim(),p=document.getElementById('e-preco').value,d=document.getElementById('e-dur').value,a=document.getElementById('e-at').value;if(!n||!p)return alert('Preencha tudo.');await fetch('/api/servico/'+id,{method:'PUT',headers:{'Content-Type':J},body:JSON.stringify({nome:n,preco:p,duracao:d,ativo:a})});location.reload()}
+async function toggle(id,a,n,p,d){await fetch('/api/servico/'+id,{method:'PUT',headers:{'Content-Type':J},body:JSON.stringify({nome:n,preco:p,duracao:d,ativo:a})});location.reload()}
+</script>
+{% endblock %}

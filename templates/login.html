@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Login — GusTico{% endblock %}
+{% block content %}
+<div style="max-width:340px;margin:60px auto">
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="background:var(--vm);color:#fff;display:inline-block;padding:8px 14px;border-radius:6px;font-weight:700;font-size:18px;margin-bottom:10px">GT</div>
+    <h2 style="font-size:18px">Painel Admin</h2>
+    <p style="color:var(--txt3);font-size:12px;margin-top:4px">Senha padrão: admin123</p>
+  </div>
+  <div class="card">
+    <form method="POST">
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" name="senha" class="inp" placeholder="••••••••" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-vm" style="width:100%;justify-content:center;padding:10px">Entrar →</button>
+    </form>
+  </div>
+  <div style="text-align:center;margin-top:14px"><a href="/" style="font-size:12px;color:var(--txt3)">← Ver fila pública</a></div>
+</div>
+{% endblock %}
