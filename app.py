@@ -1,7 +1,6 @@
 """GusTico Barbearia — Sistema de fila simplificado."""
 
-import sqlite3
-import hashlib
+import sqlite3, hashlib, os
 from datetime import date, datetime
 from functools import wraps
 from flask import (Flask, render_template, request, redirect,
@@ -10,6 +9,9 @@ from flask import (Flask, render_template, request, redirect,
 app = Flask(__name__)
 app.secret_key = "gustico-2026"
 SENHA_HASH = hashlib.sha256("admin123".encode()).hexdigest()
+
+# Banco: usa /tmp em produção (Render tem filesystem read-only na raiz)
+DB = os.path.join("/tmp" if os.environ.get("RENDER") else ".", "gustico.db")
 
 @app.template_filter("datebr")
 def datebr_filter(val):
@@ -34,7 +36,7 @@ def diames_filter(val):
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect("gustico.db")
+        g.db = sqlite3.connect(DB)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys=ON")
     return g.db
@@ -46,7 +48,7 @@ def close_db(_e=None):
         db.close()
 
 def init_db():
-    db = sqlite3.connect("gustico.db")
+    db = sqlite3.connect(DB)
     db.executescript("""
         CREATE TABLE IF NOT EXISTS servicos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -347,7 +349,8 @@ def api_reordenar():
 
 # ── Main ─────────────────────────────────────────────
 
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     print("\n💇 GusTico rodando em http://localhost:5000\n")
     app.run(debug=True, port=5000)
